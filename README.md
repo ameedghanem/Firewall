@@ -1,2 +1,2 @@
 # Information Security Workshop
- In this workshop I built a firewall in 3 steps. Fisrstly, I built a statefull firewall, then I improved it by adding a connection table which made him a statefull firewall. In the last, i choose 2 different vulnerabilties and upgraded it to counter them!
+ In this workshop I built a firewall in 3 steps. Firstly, I implemented a stateless firewall, then I improved it by adding a connection table which made him a statefull firewall. And Lastly, I chose 2 different vulnerabilties and upgraded it to counter them!
