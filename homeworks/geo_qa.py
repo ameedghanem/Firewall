@@ -26,6 +26,8 @@ def get_charecter_info(url):
 	Returns his name and his date of birth
 	"""
 	res = requests.get(url)
+	if res.status_code != 200:
+		return ""
 	doc = lxml.html.fromstring(res.content)
 	infobox = doc.xpath("//table[contains(@class, 'infobox')]")[0]
 
@@ -38,8 +40,18 @@ def get_charecter_info(url):
 	if b != []:
 		lst = b[0].xpath("./../td//span[@class='bday']//text()")
 		if lst != []:
+			if '\n' in lst:
+				lst.remove('\n')
+			#print(lst)
 			bdate = lst[0].replace(" ", "_")
-
+	if bdate == "":
+		b = infobox.xpath("//table//th[contains(text(), 'Born')]")
+		if b != []:
+			lst = b[0].xpath("./../td/text()[1]")
+			if lst != []:
+				bdate = lst[0].replace(" ", "_")
+	if sum([1 for ch in bdate if 0 <= ord(ch)-ord('0') <= 9]) < 1:
+		bdate = ""
 	return bdate
 
 
@@ -68,7 +80,16 @@ def get_countries_info(url):
 			page_doc = lxml.html.fromstring(page.content)
 			infobox = page_doc.xpath("//table[contains(@class, 'infobox')]")[0]
 
-			cname = infobox.xpath("//div[contains(@class, 'fn org')]//text()")[0].replace(" ", "_")
+			cname = ""
+			cname_lst = infobox.xpath("//th/div[(contains(@class, 'fn org') and position()=1)]//text()")
+			if cname_lst == []:
+				cname_lst = infobox.xpath("//th/div/div[contains(@class, 'fn org')]/div/div/span[1]/text()")
+			if '\n' in cname_lst:
+				cname_lst.remove('\n')
+			for word in cname_lst:
+				if '[' in word:
+					continue
+				cname += word.replace(" ", "_")
 
 			president_h = infobox.xpath("//th//div/a[text()='President']")
 			if president_h != []:
@@ -76,12 +97,15 @@ def get_countries_info(url):
 				president_link = president_h[0].xpath("../../../td//a/@href")[0]
 				pt_bdate = get_charecter_info(wiki_prefix + president_link)
 
-			#print(cname, president, pt_bdate)
-			prime_minister_h = infobox.xpath("//table//th[contains(text(), 'Prime Minister')]")
+
+			prime_minister_h = infobox.xpath("//tr//div/a[text()='Prime Minister']")
 			if prime_minister_h != []:
-				prime_minister = prime_minister_h[0].xpath("./../td/text()")[0].areplace(" ", "_")
-				prime_minister_link = prime_minister_h[0].xpath("./../td//a/@href")[0]
-				pm_bdate = get_charecter_info(wiki_prefix + prime_minster_link)
+				lst = prime_minister_h[0].xpath("../../../td//a/text()")
+				if '\n' in lst:
+					lst.remove('\n')
+				prime_minister = lst[0].replace(" ", "_")
+				prime_minister_link = prime_minister_h[0].xpath("../../../td//a/@href")[0]
+				pm_bdate = get_charecter_info(wiki_prefix + prime_minister_link)
 
 
 			population_h = infobox.xpath("//table//th//a[text()='Population']")
@@ -90,25 +114,30 @@ def get_countries_info(url):
 				lst = estimate.xpath("../..//td[1]//text()")
 				if '\n' in lst:
 					lst.remove('\n')
-				population = lst[0].replace(" ", "") #estimate.xpath("../..//td[1]//text()")[0].replace(" ", "")
-				#estimate = population_h[0].xpath("../../..//div[contains(translate(text(), 'E', 'e'), 'estimate') or contains(text(), 'census')]")[0]
+				population = lst[0].replace(" ", "")
 
 
 			area_h = infobox.xpath("//table//th/a[contains(text(), 'Area')]")
 			if area_h != []:
-				#print(area_h[0].xpath("../../../tr/th/div[contains(text(), 'Total')]"))
-				total = area_h[0].xpath("../../../tr/th[1]/div[(contains(text(), 'Total') or contains(text(), 'Land')) and position()=1]")[0]
-				#print(total.xpath("../../td[1]/text()"))
+				total = area_h[0].xpath("../../../tr/th[1]/div[(contains(text(), 'Land') or contains(text(), 'Total')) and position()=1]")[0]
 				area = total.xpath("../../td[1]/text()")[0]
+				if '$' in area:
+					total = area_h[0].xpath("../../../tr//div[contains(./a/text(), 'Land')]")[0]
+					area = total.xpath("../../td[1]/text()")[0]
+				area = ' '.join(area.split())
+				if ' ' in area:
+					ind = area.index(' ')
+					area = area[:ind] + "_km2"
+				elif not area.endswith("km2"):
+					area = area + "_km2"
 
 
-			government_h = infobox.xpath("//table//th//text()[contains(., 'Government')]/..")[0]
+			government_h = infobox.xpath("//table//th//text()[contains(., 'Government')]/..")
 			if government_h != []:
-				government_words = government_h.xpath("../..//td/a/text()")
+				government_words = government_h[0].xpath("../..//td/a/text()")
 				for word in government_words:
 					government += (word.replace(" ", "_") + "_")
 				government = government[:-1]
-				#government = government_h[0].xpath("./../td//text()")[0]
 
 
 			capital_h = infobox.xpath("//table//th[contains(text(), 'Capital')]")
@@ -118,7 +147,8 @@ def get_countries_info(url):
 					capital_lst.remove('\n')
 				capital = capital_lst[0].replace(" ", "_")
 
-			print(cname, president, pt_bdate, capital, government, population, area, prime_minister)
+			#print(cname, president, pt_bdate, capital, government, population, area, prime_minister)
+			print(cname, capital, area)
 			writer.write("<http://example.org/{0}> <http://example.org/president> <http://example.org/{1}> .\n".format(president, cname))
 			writer.write("<http://example.org/{0}> <http://example.org/prime_minister> <http://example.org/{1}> .\n".format(prime_minister, cname))
 			writer.write("<http://example.org/{0}> <http://example.org/population> <http://example.org/{1}> .\n".format(population, cname))
