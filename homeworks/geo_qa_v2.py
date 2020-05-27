@@ -1,4 +1,4 @@
-import requests 
+import requests
 import lxml.html
 import rdflib
 import nltk, sys
