@@ -118,18 +118,26 @@ def get_countries_info(url):
 
 
 			area_h = infobox.xpath("//table//th/a[contains(text(), 'Area')]")
-			if area_h != []:
-				total = area_h[0].xpath("../../../tr/th[1]/div[(contains(text(), 'Land') or contains(text(), 'Total')) and position()=1]")[0]
+			if area_h == []:
+				area_h = infobox.xpath("//table//th//text()[contains(., 'Area')]/..")
+				total = area_h[0].xpath("../../tr/th[1]/div[contains(text(), 'Total')]")
+				if total != []:
+					area = total[0].xpath("../../td[1]/text()")[0]
+				else:
+					total = area_h[0].xpath("../../tr/th[1]//text()[contains(., 'Total')]/..")[0]
+					area = total.xpath("../../td[1]/text()")[0]
+			else:
+				total = area_h[0].xpath("../../../tr/th[1]/div[(contains(text(), 'Land') or contains(text(), 'Total') or contains(text(), 'Including') or contains(text(), 'proper')) and position()=1]")[0]
 				area = total.xpath("../../td[1]/text()")[0]
 				if '$' in area:
 					total = area_h[0].xpath("../../../tr//div[contains(./a/text(), 'Land')]")[0]
 					area = total.xpath("../../td[1]/text()")[0]
-				area = ' '.join(area.split())
-				if ' ' in area:
-					ind = area.index(' ')
-					area = area[:ind] + "_km2"
-				elif not area.endswith("km2"):
-					area = area + "_km2"
+			area = ' '.join(area.split())
+			if ' ' in area:
+				ind = area.index(' ')
+				area = area[:ind] + "_km2"
+			elif not area.endswith("km2"):
+				area = area + "_km2"
 
 
 			government_h = infobox.xpath("//table//th//text()[contains(., 'Government')]/..")
