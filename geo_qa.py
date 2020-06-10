@@ -16,11 +16,16 @@ capital_r = rdflib.URIRef("http://example.org/capital")
 born_r = rdflib.URIRef("http://example.org/born")
 government_r = rdflib.URIRef("http://example.org/government")
 
+president_of = "President of "
+prime_minister_of = "Prime minister of "
+
 cname_index = 6
 exampleOrg_index = 19
 get_content = lambda entity: entity[0][exampleOrg_index:]
+compose_uri = lambda s: example_prefix+s
 
 total_presidents = set()
+total_countries = set()
 
 #########################
 # Information Extraction
@@ -95,7 +100,7 @@ def get_countries_info(url, ontology_path):
 	doc = lxml.html.fromstring(res.content)
 	
 	table = doc.xpath("//table[contains(@id, 'main')]")[0]
-	countries = table.xpath("//td//span[1]/a[@title]/@href")
+	countries = table.xpath(".//td[.//span/@class]//a[1][@title]/@href")#table.xpath("//td//span[1]/a[@title]/@href")
 
 	president = prime_minister = population = area = government = capital = ""
 	pt_bdate = pm_bdate = ""
@@ -111,6 +116,8 @@ def get_countries_info(url, ontology_path):
 
 		cname = c[cname_index:]
 		cname = urllib.parse.unquote(cname)
+		if cname in total_countries:
+			continue
 
 		president_h = infobox.xpath("//th//div/a[text()='President']")
 		if president_h != []:
@@ -164,15 +171,19 @@ def get_countries_info(url, ontology_path):
 			area_h = infobox.xpath("//table//th//text()[contains(., 'Area')]/..")
 			total = area_h[0].xpath("../../tr/th[1]/div[contains(text(), 'Total')]")
 			if total != []:
+				#print(total[0].xpath("../../td[1]/text()"))
 				area = total[0].xpath("../../td[1]/text()")[0]
 			else:
 				total = area_h[0].xpath("../../tr/th[1]//text()[contains(., 'Total')]/..")[0]
+				#print(total.xpath("../td[1]/text()"))
 				area = total.xpath("../td[1]/text()")[0]#it was "../../td[1]/text()" but not working, i changedbut network has failed
 		else:
 			total = area_h[0].xpath("../../../tr/th[1]/div[(contains(text(), 'Land') or contains(text(), 'Total') or contains(text(), 'Including') or contains(text(), 'proper')) and position()=1]")[0]
+			#print(179, total.xpath("../../td[1]/text()"))
 			area = total.xpath("../../td[1]/text()")[0]
 			if '$' in area:
 				total = area_h[0].xpath("../../../tr//div[contains(./a/text(), 'Land')]")[0]
+				#print(total.xpath("../../td[1]/text()"))
 				area = total.xpath("../../td[1]/text()")[0]
 		area = ' '.join(area.split())
 		if ' ' in area:
@@ -205,6 +216,7 @@ def get_countries_info(url, ontology_path):
 			if 'None' in capital_lst[0].replace(" ", ""):
 				capital = ""
 
+		total_countries.add(cname)	
 		update_ontology(
 			countries_ontology,
 			cname, capital,
@@ -225,16 +237,6 @@ def get_countries_info(url, ontology_path):
 # Natural Language Processing
 ###############################
 
-def parse_question(question):
-	"""
-	Accepts a question in the english language
-	Returns a sparql query properly
-	"""
-	query = ""
-	tokens = nltk.word_tokenize(question)
-	tags = tokens.pos_tag(tokens)
-
-
 
 
 def get_asnwer(query):
@@ -242,7 +244,31 @@ def get_asnwer(query):
 	Accepts a sparql query
 	Returns the query's answer according to the ontology we've created before
 	"""
-	pass
+	identity = ""
+	geo_ontology = rdflib.Graph()
+	geo_ontology.parse("ontology.nt", format="nt")
+	lst = list(geo_ontology.query(query))
+	answer = [get_content(ans).replace("_", " ") for ans in lst]
+	return answer, identity
+
+
+
+
+def print_asnwer(asnwer, identity):
+	"""
+	printing the answer of properly
+	"""
+	if identity:
+		print(president_of if identity=='president' else prime_minister_of)
+		if len(asnwer) == 1:
+			print(asnwer[0])
+		else:
+			for ans in asnwer:
+				print(ans, ', ')
+		return
+	else:
+		print(asnwer[0])
+
 
 
 
