@@ -100,7 +100,7 @@ def get_countries_info(url, ontology_path):
 	doc = lxml.html.fromstring(res.content)
 	
 	table = doc.xpath("//table[contains(@id, 'main')]")[0]
-	countries = table.xpath(".//td[.//span/@class]//a[1][@title]/@href")#table.xpath("//td//span[1]/a[@title]/@href")
+	countries = set(table.xpath(".//td[.//span/@class]//a[1][@title]/@href"))-{'/wiki/Kingdom_of_the_Netherlands'}#table.xpath("//td//span[1]/a[@title]/@href")
 
 	president = prime_minister = population = area = government = capital = ""
 	pt_bdate = pm_bdate = ""
@@ -112,12 +112,15 @@ def get_countries_info(url, ontology_path):
 
 		page = requests.get(wiki_prefix + c)
 		page_doc = lxml.html.fromstring(page.content)
-		infobox = page_doc.xpath("//table[contains(@class, 'infobox')]")[0]
+		infobox = page_doc.xpath("//table[contains(@class, 'infobox')]")#[0]
+		if infobox == []:
+			continue
+		infobox = infobox[0]
 
 		cname = c[cname_index:]
 		cname = urllib.parse.unquote(cname)
-		if cname in total_countries:
-			continue
+		#if cname in total_countries:
+		#	continue
 
 		president_h = infobox.xpath("//th//div/a[text()='President']")
 		if president_h != []:
@@ -136,8 +139,7 @@ def get_countries_info(url, ontology_path):
 			pm_bdate = get_charecter_info(wiki_prefix + prime_minister_link)
 
 
-		population_h = infobox.xpath("//table//th//a[text()='Population']")
-		#print(infobox.xpath("//table//th//a[text()='Population']/text()"), cname)
+		"""population_h = infobox.xpath("//table//th//a[text()='Population']")
 		if population_h != []:
 			estimate = population_h[0].xpath("../../..//th//text()[contains(., 'estimate') or contains(., 'census') or contains(., 'Estimate')]/..")[0]
 			lst = estimate.xpath("../..//td[1]//text()")
@@ -164,6 +166,31 @@ def get_countries_info(url, ontology_path):
 					population = infobox.xpath("//table//tr[contains(./th/text()[1], 'Population')]/following-sibling::tr[1]/td[1]//text()")[0]
 				else:
 					population = population_h[0].xpath("../../tr//th/div[contains(text(), 'census') or contains(text(), 'Census')]/../../td/text()")[0].replace(" ", "")
+		"""
+		"""population = infobox.xpath("//table//tr[./th//text()='Population'][1]/following-sibling::tr[1]/th[contains(.//div//text(), 'estimate') or contains(.//div/text(), 'census') or contains(.//div/text(), 'Census') or contains(.//div/text(), 'Estimate') or contains(.//div/text(), 'Total')]/../td//text()")[0]
+		population = ''.join(population.split(' '))
+		if population.endswith('\n'):
+			population = population[:-1]
+		if '(' in population:
+			population = population[:population.index('(')]"""
+
+		"""population_h = infobox.xpath("//table//tr[./th//text()='Population'][1]/following-sibling::tr[1]/th[1]")
+		print(infobox.xpath("//table//tr[.//th//text()='Population'][1]//th//text()"))#/following-sibling::tr[1]/th[1]//text()"))
+		#print(population_h[0].xpath("./../td//text()"))
+		population = population_h[0].xpath("./../td//text()")"""
+		population = infobox.xpath(".//tr[./th//text()='Population'][1]/following-sibling::tr[1]/td[1]//text()")
+		if population == []:
+			continue
+		#print(cname, infobox.xpath(".//tr/th/a[contains(text(), 'Population')]/text()"))#".//tr[./th/a/text()='Population']/th/a/text()"))
+		if '\n' in population:
+			population.remove('\n')
+		if 'km' in population[0]:
+			population = infobox.xpath(".//tr[./th//text()='Population'][1]/td[1]//text()")
+		population = ''.join(population[0].split())
+		if population.endswith('\n'):
+			population = population[:-1]
+		if '(' in population:
+			population = population[:population.index('(')]
 
 
 		area_h = infobox.xpath("//table//th/a[contains(text(), 'Area')]")
@@ -193,15 +220,24 @@ def get_countries_info(url, ontology_path):
 			area = area + "_km2"
 
 
-		government_h = infobox.xpath("//table//tr/th//text()[contains(., 'Government')]/..")
+		government_h = infobox.xpath("//table//tr/th[.//text()='Government']//text()/..")
 		if government_h != []:
-			government_words = government_h[0].xpath("./../../td//a/text()")
+			government_words = government_h[0].xpath("./../../td//text()")
 			if government_words == []:
-				government_words = government_h[0].xpath(".//../td//a/text()")
+				government_words = government_h[0].xpath(".//../td//text()")
+			for word in government_words:
+				if 'de facto' in word:
+					government_words.remove('\n')
+					government_words = government_words[:government_words.index(word)]
+					break
+			invalid_words = ['[', ':', '\n', ' ']
+			government_words = [word for word in government_words if word not in invalid_words and 'de jure' not in word and 'de facto' not in word]
 			for word in government_words:
 				if '[' in word:
 					continue
-				government += (word.replace(" ", "_") + "_")
+				if word.endswith(' '):
+					word = word.replace(' ', '')
+				government += (word.replace(' ', '_') + "_")
 			government = government[:-1]
 
 
@@ -216,7 +252,7 @@ def get_countries_info(url, ontology_path):
 			if 'None' in capital_lst[0].replace(" ", ""):
 				capital = ""
 
-		total_countries.add(cname)	
+		#total_countries.add(cname)	
 		update_ontology(
 			countries_ontology,
 			cname, capital,
@@ -226,11 +262,13 @@ def get_countries_info(url, ontology_path):
 			population,
 			area
 		)
-		print(cname, population)
+		if 'republic' not in government and 'monarchy' not in government:
+			print(cname)
+		#print(cname, government)
 
 	countries_ontology.serialize(ontology_path, format="nt")
 
-
+#3 TODO: check if all ares in kn not miles, and 2nd, check if population doesnt have a km in the string
 
 
 ###############################
