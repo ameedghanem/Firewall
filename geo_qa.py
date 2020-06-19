@@ -344,29 +344,17 @@ def evaluate_query(query):
 	geo_ontology.parse("ontology.nt", format="nt")
 	if query:
 		if len(query) > 1:
-			lst = list(geo_ontology.query(query[0])) or list(geo_ontology.query(query[1]))
+			res1 = geo_ontology.query(query[0])
+			if res1:
+				lst = list(res1) + ['president']
+			res2 = geo_ontology.query(query[1])
+			if res2 and not res1:
+				lst = list(res2) + ['prime_minister']
 		else:
 			lst = list(geo_ontology.query(query[0]))
 	if lst:
-		answer = [get_content(ans).replace("_", " ") for ans in lst]
+		answer = [get_content(ans).replace("_", " ") for ans in lst if type(ans) != str] + [t for t in lst if type(t) == str]
 	return answer
-
-
-
-def print_answer(answer, identity):
-	"""
-	printing the answer of properly
-	"""
-	if identity:
-		print(president_of if identity=='president' else prime_minister_of)
-		if len(answer) == 1:
-			print(answer[0])
-		else:
-			for ans in answer:
-				print(ans, ', ')
-		return
-	else:
-		print(answer[0])
 
 
 
@@ -379,14 +367,15 @@ def answer_the_question(question):
 	query = get_sparql_query(entity, relation)
 	answer = evaluate_query(query)
 	if answer:
-		answer = ', '.join(answer) if len(answer) > 1 else answer[0]
 		if 'who is' not in question.lower():
+			answer = ', '.join(answer) if len(answer) > 1 else answer[0]
 			print(answer)
 		else:
 			if relation == 'prime_minister' or relation == 'president':
+				answer = ', '.join(answer) if len(answer) > 1 else answer[0]
 				print(answer)
 			elif relation == 'president_prime_minister':
-				print("President of %s" % answer)
+				print("%s of %s" % (answer[1].title().replace('_', ' '), answer[0]))
 			else:
 				sys.exit()
 
