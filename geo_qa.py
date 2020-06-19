@@ -275,38 +275,120 @@ def get_countries_info(url, ontology_path):
 # Natural Language Processing
 ###############################
 
+def extract_entity(question, word1, word2):
+	"""
+	extracts the entity whcih is actually the substring between the two given words
+	"""
+	ind1 = question.lower().index(word1.lower()) + len(word1)
+	ind2 = question.lower().index(word2.lower())
+	return question[ind1:ind2]
 
 
-def get_asnwer(query):
+
+def parse_question(question):
+	"""
+	parses the question returns the relevant entity and relation
+	"""
+	entity = relation = ""
+	if 'born' in question.lower(): # the pattern of when was <entitiy> born
+		entity = extract_entity(question, 'of ', ' born')
+		r = extract_entity(question, 'the ', ' of ')
+		relation = 'born' + '_%s' % (r)
+	elif 'who' in question.lower():
+		if 'president' in question.lower() or 'prime minister' in question.lower():
+			relation = extract_entity(question, 'is the ', ' of ')
+			entity = extract_entity(question, ' of ', '?')
+		else:
+			relation = 'president_prime_minister'
+			entity = question[7:-1]
+	else:
+		relation = extract_entity(question, 'is the ', ' of ')
+		entity = extract_entity(question, ' of ', '?')
+	if entity == "" or relation == "":
+		return None
+	entity, relation = entity.replace(" ", "_"), relation.replace(" ", "_")
+	if entity.endswith('_'):
+		entity = entity[:-1]
+	if relation.endswith('_'):
+		relation = relation[:-1]
+	return entity, relation
+
+
+
+def get_sparql_query(entity, relation):
+	"""
+	accepts an entity and a relation and bulids a proper sparql query
+	"""
+	query = None
+	if relation != 'president_prime_minister' and 'born_' not in relation:
+		query = ["select ?f where { <http://example.org/%s> <http://example.org/%s> ?f } " % (entity, relation)]
+	elif relation.startswith('born'):
+		relation = relation.split('_', 1)[1]
+		query = ["select ?bdate where { <http://example.org/%s> <http://example.org/%s> ?p. ?p <http://example.org/born> ?bdate }" % (entity, relation)]
+	else:
+		q1 = "select ?c where { ?c <http://example.org/president> <http://example.org/%s> }" % entity
+		q2 = "select ?c where { ?c <http://example.org/prime_minister> <http://example.org/%s> }" % entity
+		query = [q1, q2]
+	return query
+
+
+
+def evaluate_query(query):
 	"""
 	Accepts a sparql query
 	Returns the query's answer according to the ontology we've created before
 	"""
-	identity = ""
+	lst = []
+	answer = ""
 	geo_ontology = rdflib.Graph()
 	geo_ontology.parse("ontology.nt", format="nt")
-	lst = list(geo_ontology.query(query))
-	answer = [get_content(ans).replace("_", " ") for ans in lst]
-	return answer, identity
+	if query:
+		if len(query) > 1:
+			lst = list(geo_ontology.query(query[0])) or list(geo_ontology.query(query[1]))
+		else:
+			lst = list(geo_ontology.query(query[0]))
+	if lst:
+		answer = [get_content(ans).replace("_", " ") for ans in lst]
+	return answer
 
 
 
-
-def print_asnwer(asnwer, identity):
+def print_answer(answer, identity):
 	"""
 	printing the answer of properly
 	"""
 	if identity:
 		print(president_of if identity=='president' else prime_minister_of)
-		if len(asnwer) == 1:
-			print(asnwer[0])
+		if len(answer) == 1:
+			print(answer[0])
 		else:
-			for ans in asnwer:
+			for ans in answer:
 				print(ans, ', ')
 		return
 	else:
-		print(asnwer[0])
+		print(answer[0])
 
+
+
+def answer_the_question(question):
+	"""
+	accepts aquestion in natural language (ENG)
+	prints the proper answer
+	"""
+	entity, relation = parse_question(question)
+	query = get_sparql_query(entity, relation)
+	answer = evaluate_query(query)
+	if answer:
+		answer = ', '.join(answer) if len(answer) > 1 else answer[0]
+		if 'who is' not in question.lower():
+			print(answer)
+		else:
+			if relation == 'prime_minister' or relation == 'president':
+				print(answer)
+			elif relation == 'president_prime_minister':
+				print("President of %s" % answer)
+			else:
+				sys.exit()
 
 
 
@@ -314,24 +396,16 @@ def print_asnwer(asnwer, identity):
 # M  A  I  N
 ###############
 
-def run(argv):
+def run_qa(argv):
 	cmd = argv[1]
 	if cmd == 'create' and argv[2].endswith(".nt"):
 		get_countries_info(united_natinos_url, argv[2])
 	elif cmd == 'question':
-		query = parse_question(argv[2])
-		answer = get_answer(query)
-		print(answer)
+		answer_the_question(argv[2])
 	else:
 		print("Invalid Command")
 		return
 
 
-"""
 if __name__ == '__main__':
-	if len(sys.argv) != 3:
-		print("Usage: {} <command> <argument>".format(sys.argv[0]))
-	run(sys.argv)
-"""
-
-get_countries_info(united_natinos_url, "ontology.nt")
+	run_qa(sys.argv)
