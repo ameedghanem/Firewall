@@ -23,28 +23,6 @@ cname_index = 6
 #########################
 
 
-def update_ontology(ontology, cname, capital, president, pt_bdate, prime_minister, pm_bdate, government, population, area):
-	"""
-	Adds all relevnt data about the given country!
-	"""
-	if capital != "":
-		ontology.add((rdflib.URIRef(example_prefix+cname), capital_r, rdflib.URIRef(example_prefix+capital)))
-	if president != "":
-		ontology.add((rdflib.URIRef(example_prefix+president), president_r, rdflib.URIRef(example_prefix+cname)))
-	if prime_minister != "":
-		ontology.add((rdflib.URIRef(example_prefix+prime_minister), prime_minister_r, rdflib.URIRef(example_prefix+cname)))
-	if pt_bdate != "":
-		ontology.add((rdflib.URIRef(example_prefix+president), born_r, rdflib.URIRef(example_prefix+pt_bdate)))
-	if pm_bdate != "":
-		ontology.add((rdflib.URIRef(example_prefix+prime_minister), born_r, rdflib.URIRef(example_prefix+pm_bdate)))
-	if government != "":
-		ontology.add((rdflib.URIRef(example_prefix+cname), government_r, rdflib.URIRef(example_prefix+government)))
-	if population != "":
-		ontology.add((rdflib.URIRef(example_prefix+cname), population_r, rdflib.URIRef(example_prefix+population)))
-	if area != "":
-		ontology.add((rdflib.URIRef(example_prefix+cname), area_r, rdflib.URIRef(example_prefix+area)))
-
-
 def get_charecter_info(url):
 	"""
 	Accepts a url of some president.
@@ -191,52 +169,31 @@ def get_countries_info(url, ontology_path):
 			population,
 			area
 		)
-		print(cname, population)
-
 	countries_ontology.serialize(ontology_path, format="nt")
 
 
 
 
-###############################
-# Natural Language Processing
-###############################
-
-def parse_question(question):
+def update_ontology(ontology, cname, capital, president, pt_bdate, prime_minister, pm_bdate, government, population, area):
 	"""
-	Accepts a question in the english language
-	Returns a sparql query properly
+	Adds all relevnt data about the given country!
 	"""
-	query = ""
-	tokens = nltk.word_tokenize(question)
-	tags = tokens.pos_tag(tokens)
-
-
-
-
-def print_asnwer(query):
-	"""
-	Accepts a sparql query
-	Returns the query's answer according to the ontology we've created before
-	"""
-	pass
-
-
-
-###############
-# M  A  I  N
-###############
-
-def run(argv):
-	cmd = argv[1]
-	if cmd == 'create' and argv[2].endswith(".nt"):
-		get_countries_info(united_natinos_url, argv[2])
-	elif cmd == 'question':
-		query = parse_question(argv[2])
-		print_answer(query)
-	else:
-		print("Invalid Command")
-		return
+	if capital != "":
+		ontology.add((rdflib.URIRef(example_prefix+cname), capital_r, rdflib.URIRef(example_prefix+capital)))
+	if president != "":
+		ontology.add((rdflib.URIRef(example_prefix+president), president_r, rdflib.URIRef(example_prefix+cname)))
+	if prime_minister != "":
+		ontology.add((rdflib.URIRef(example_prefix+prime_minister), prime_minister_r, rdflib.URIRef(example_prefix+cname)))
+	if pt_bdate != "":
+		ontology.add((rdflib.URIRef(example_prefix+president), born_r, rdflib.URIRef(example_prefix+pt_bdate)))
+	if pm_bdate != "":
+		ontology.add((rdflib.URIRef(example_prefix+prime_minister), born_r, rdflib.URIRef(example_prefix+pm_bdate)))
+	if government != "":
+		ontology.add((rdflib.URIRef(example_prefix+cname), government_r, rdflib.URIRef(example_prefix+government)))
+	if population != "":
+		ontology.add((rdflib.URIRef(example_prefix+cname), population_r, rdflib.URIRef(example_prefix+population)))
+	if area != "":
+		ontology.add((rdflib.URIRef(example_prefix+cname), area_r, rdflib.URIRef(example_prefix+area)))
 
 
 """
